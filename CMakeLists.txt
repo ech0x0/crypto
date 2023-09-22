@@ -16,3 +16,4 @@ else()
   target_compile_options(crypto PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+target_link_libraries(crypto gmp)
