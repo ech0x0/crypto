@@ -1,5 +1,5 @@
 #include "rsa.h"
-#include "random.h"
+#include "../utils/random.h"
 
 void rsa_keygen(mpz_t e, mpz_t d, mpz_t n, mp_bitcnt_t bitcnt) {
     init_rand();
