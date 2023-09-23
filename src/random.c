@@ -3,7 +3,7 @@
 
 #include <unistd.h>
 #include <fcntl.h>
-
+#include <stdlib.h>
 
 int rand_bytes(uint8_t* bytes, size_t bytecnt) {
     int file = open("/dev/urandom", O_RDONLY);
@@ -11,12 +11,23 @@ int rand_bytes(uint8_t* bytes, size_t bytecnt) {
     return read(file, bytes, bytecnt);
 }
 
+void byte_array_to_mpz(mpz_t n, uint8_t* bytes, size_t bytecnt) {
+    mpz_import(n, bytecnt, 1, 1, 0, 0, bytes);
+}
+
 gmp_randstate_t state;
 mpz_t seed;
 
 void init_rand() {
     mpz_init(seed);
-    mpz_set_ui(seed, system_current_time_millis());
+
+    const size_t bytecnt = 128;
+    uint8_t* bytes = malloc(bytecnt);
+
+    rand_bytes(bytes, bytecnt);
+    byte_array_to_mpz(seed, bytes, bytecnt);
+
+    free(bytes);
 
     gmp_randinit_mt(state);
     gmp_randseed(state, seed);

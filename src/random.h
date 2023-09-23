@@ -6,6 +6,7 @@
 
 //returns -1 for errors otherwise returns the number of bytes read
 int rand_bytes(uint8_t* bytes, size_t bytecnt);
+void byte_array_to_mpz(mpz_t n, uint8_t* bytes, size_t bytecnt);
 
 void init_rand();
 void destroy_rand();
