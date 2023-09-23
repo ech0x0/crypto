@@ -1,10 +1,12 @@
 #include "rsa.h"
+#include "random.h"
+#include <stdint.h>
 
-void generate_random_number(mpz_t n, mp_bitcnt_t bitcnt) {
-    
+void test() {
+
 }
 
-void rsa_keygen(mpz_t public_key, mpz_t private_key, mpz_t modulus) {
+void rsa_keygen(mpz_t public_key, mpz_t private_key, mpz_t modulus, mp_bitcnt_t bitcnt) {
     mpz_t p, q;
     mpz_init(p);
     mpz_init(q);
