@@ -3,6 +3,7 @@
 
 #include <gmp.h>
 #include <stdint.h>
+#include <stddef.h>
 
 //returns -1 for errors otherwise returns the number of bytes read
 int rand_bytes(uint8_t* bytes, size_t bytecnt);
