@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-void sha256(uint8_t* hash, uint8_t* message, size_t message_len);
+//returns 0 for success
+//returns 1, 2, 3 for invalid parameters
+int sha256(uint8_t* hash, const uint8_t* message, const size_t message_len);
 
 #endif 
