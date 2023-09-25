@@ -2,6 +2,13 @@
 
 #include <stdlib.h>
 
+//swap from little to big endian
+#define byteSwap64(x)                                                      \
+	((((x) >> 56) & 0x00000000000000FF) | (((x) >> 40) & 0x000000000000FF00) | \
+	 (((x) >> 24) & 0x0000000000FF0000) | (((x) >> 8) & 0x00000000FF000000) |  \
+	 (((x) << 8) & 0x000000FF00000000) | (((x) << 24) & 0x0000FF0000000000) |  \
+	 (((x) << 40) & 0x00FF000000000000) | (((x) << 56) & 0xFF00000000000000))
+
 static const uint32_t k[64] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -45,20 +52,118 @@ static inline uint32_t lower_sigma1(uint32_t x) {
     return rotr(x, 17) ^ rotr(x, 19) ^ shr(x, 10);
 }
 
-int sha256(uint8_t* hash, const uint8_t* message, const size_t message_len) {
+int sha256(uint32_t* hash, const uint8_t* message, const size_t message_len) {
     if (!hash) return 1;
     if (!message) return 2;
     if (message_len <= 0) return 3;
 
-    uint32_t m[16];
-    const size_t blocks = (message_len + 65) / 512 + 1;
+    hash[0] = 0x6a09e667;
+    hash[1] = 0xbb67ae85;
+    hash[2] = 0x3c6ef372;
+    hash[3] = 0xa54ff53a;
+    hash[4] = 0x510e527f;
+    hash[5] = 0x510e527f;
+    hash[6] = 0x1f83d9ab;
+    hash[7] = 0x5be0cd19;
 
-    for (size_t index = 0; index < blocks - 1; ++index) {
+    for (size_t index = 0; (index + 1) * 512 <= message_len; ++index) {
+        uint32_t w[64];
+        for (int i = 0; i < 16; ++i) {
+            w[i] =
+                ((uint32_t)message[index * 64 + i * 4] << 24) |
+                ((uint32_t)message[index * 64 + i * 4 + 1] << 16) |
+                ((uint32_t)message[index * 64 + i * 4 + 2] << 8) |
+                ((uint32_t)message[index * 64 + i * 4 + 3]);
+        }
+        for (int i = 16; i < 64; ++i) {
+            w[i] = (uint32_t)(((uint64_t)lower_sigma1(w[i - 2]) + (uint64_t)w[i - 7] + (uint64_t)lower_sigma0(w[i - 15]) + (uint64_t)w[i - 16]) % ((uint64_t)1 << 32));
+        }
 
+        uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
+        for (int i = 0; i < 64; ++i) {
+            uint32_t t1 = (uint32_t)(((uint64_t)h + (uint64_t)upper_sigma1(e) + (uint64_t)ch(e, f, g) + (uint64_t)k[i] + (uint64_t)w[i]) % ((uint64_t)1 << 32));
+            uint32_t t2 = (uint32_t)(((uint64_t)upper_sigma0(a) + (uint64_t)maj(a, b, c)) % ((uint64_t)1 << 32));
+            h = g;
+            g = f;
+            f = e;
+            e = (uint32_t)(((uint64_t)d + (uint64_t)t1) % ((uint64_t)1 << 32));
+            d = c;
+            c = b;
+            a = (uint32_t)(((uint64_t)t1 + (uint64_t)t2) % ((uint64_t)1 << 32));
+        }
+
+        hash[0] = hash[0] + a;
+        hash[1] = hash[1] + b;
+        hash[2] = hash[2] + c;
+        hash[3] = hash[3] + d;
+        hash[4] = hash[4] + e;
+        hash[5] = hash[5] + f;
+        hash[6] = hash[6] + g;
+        hash[7] = hash[7] + h;
     }
 
-    //pad and hash final block separately
+    //pad and compute final blocks separately
+    uint8_t* padded_end;
+    int final_blocks_num;
+    if (message_len % 512 >= 448) {
+        padded_end = calloc(128, sizeof(uint8_t));
+        final_blocks_num = 2;
+        *(uint64_t*)(padded_end + 120) = byteSwap64(message_len);
+    }
+    else {
+        padded_end = calloc(64, sizeof(uint8_t));
+        final_blocks_num = 1;
+        *(uint64_t*)(padded_end + 56) = byteSwap64(message_len);
+    }
 
+    for (int i = 0; i < (int)(message_len % 512 / 8); ++i) {
+        padded_end[i] = message[(message_len / 512) * 64 + i];
+    }
+
+    if (message_len % 8 == 0) {
+        padded_end[message_len % 512 / 8] = 0x80;
+    }
+    else {
+        padded_end[message_len % 512 / 8] = message[(message_len / 512) * 64 + message_len % 512 / 8] | (1 << (8 - message_len % 8));
+    }
+
+    for (int index = 0; index < final_blocks_num; ++index) {
+        uint32_t w[64];
+        for (int i = 0; i < 16; ++i) {
+            w[i] =
+                ((uint32_t)padded_end[index * 64 + i * 4] << 24) |
+                ((uint32_t)padded_end[index * 64 + i * 4 + 1] << 16) |
+                ((uint32_t)padded_end[index * 64 + i * 4 + 2] << 8) |
+                ((uint32_t)padded_end[index * 64 + i * 4 + 3]);
+        }
+        for (int i = 16; i < 64; ++i) {
+            w[i] = (uint32_t)(((uint64_t)lower_sigma1(w[i - 2]) + (uint64_t)w[i - 7] + (uint64_t)lower_sigma0(w[i - 15]) + (uint64_t)w[i - 16]) % ((uint64_t)1 << 32));
+        }
+
+        uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
+        for (int i = 0; i < 64; ++i) {
+            uint32_t t1 = (uint32_t)(((uint64_t)h + (uint64_t)upper_sigma1(e) + (uint64_t)ch(e, f, g) + (uint64_t)k[i] + (uint64_t)w[i]) % ((uint64_t)1 << 32));
+            uint32_t t2 = (uint32_t)(((uint64_t)upper_sigma0(a) + (uint64_t)maj(a, b, c)) % ((uint64_t)1 << 32));
+            h = g;
+            g = f;
+            f = e;
+            e = (uint32_t)(((uint64_t)d + (uint64_t)t1) % ((uint64_t)1 << 32));
+            d = c;
+            c = b;
+            a = (uint32_t)(((uint64_t)t1 + (uint64_t)t2) % ((uint64_t)1 << 32));
+        }
+
+        hash[0] = hash[0] + a;
+        hash[1] = hash[1] + b;
+        hash[2] = hash[2] + c;
+        hash[3] = hash[3] + d;
+        hash[4] = hash[4] + e;
+        hash[5] = hash[5] + f;
+        hash[6] = hash[6] + g;
+        hash[7] = hash[7] + h;
+    }
+
+    free(padded_end);
 
     return 0;
 }
