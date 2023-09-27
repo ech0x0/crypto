@@ -98,13 +98,14 @@ int sha256(uint32_t* hash, const uint8_t* message, const size_t message_len) {
     hash[2] = 0x3c6ef372;
     hash[3] = 0xa54ff53a;
     hash[4] = 0x510e527f;
-    hash[5] = 0x510e527f;
+    hash[5] = 0x9b05688c;
     hash[6] = 0x1f83d9ab;
     hash[7] = 0x5be0cd19;
 
     size_t index = 0;
-    for (index = 0; (index + 1) * 512 <= message_len; ++index) {
+    while ((index + 1) * 512 <= message_len) {
         compute_block(hash, message + index * 64);
+        ++index;
     }
 
     //pad and compute final blocks separately
