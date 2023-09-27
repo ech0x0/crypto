@@ -52,6 +52,42 @@ static inline uint32_t lower_sigma1(uint32_t x) {
     return rotr(x, 17) ^ rotr(x, 19) ^ shr(x, 10);
 }
 
+static void compute_block(uint32_t* hash, const uint8_t* input) {
+    uint32_t w[64];
+    for (int i = 0; i < 16; ++i) {
+        w[i] =
+            ((uint32_t)input[i * 4] << 24) |
+            ((uint32_t)input[i * 4 + 1] << 16) |
+            ((uint32_t)input[i * 4 + 2] << 8) |
+            ((uint32_t)input[i * 4 + 3]);
+    }
+    for (int i = 16; i < 64; ++i) {
+        w[i] = lower_sigma1(w[i - 2]) + w[i - 7] + lower_sigma0(w[i - 15]) + w[i - 16];
+    }
+
+    uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
+    for (int i = 0; i < 64; ++i) {
+        uint32_t t1 = h + upper_sigma1(e) + ch(e, f, g) + k[i] + w[i];
+        uint32_t t2 = upper_sigma0(a) + maj(a, b, c);
+        h = g;
+        g = f;
+        f = e;
+        e = d + t1;
+        d = c;
+        c = b;
+        a = t1 + t2;
+    }
+
+    hash[0] = hash[0] + a;
+    hash[1] = hash[1] + b;
+    hash[2] = hash[2] + c;
+    hash[3] = hash[3] + d;
+    hash[4] = hash[4] + e;
+    hash[5] = hash[5] + f;
+    hash[6] = hash[6] + g;
+    hash[7] = hash[7] + h;
+}
+
 int sha256(uint32_t* hash, const uint8_t* message, const size_t message_len) {
     if (!hash) return 1;
     if (!message) return 2;
@@ -66,40 +102,9 @@ int sha256(uint32_t* hash, const uint8_t* message, const size_t message_len) {
     hash[6] = 0x1f83d9ab;
     hash[7] = 0x5be0cd19;
 
-    for (size_t index = 0; (index + 1) * 512 <= message_len; ++index) {
-        uint32_t w[64];
-        for (int i = 0; i < 16; ++i) {
-            w[i] =
-                ((uint32_t)message[index * 64 + i * 4] << 24) |
-                ((uint32_t)message[index * 64 + i * 4 + 1] << 16) |
-                ((uint32_t)message[index * 64 + i * 4 + 2] << 8) |
-                ((uint32_t)message[index * 64 + i * 4 + 3]);
-        }
-        for (int i = 16; i < 64; ++i) {
-            w[i] = (uint32_t)(((uint64_t)lower_sigma1(w[i - 2]) + (uint64_t)w[i - 7] + (uint64_t)lower_sigma0(w[i - 15]) + (uint64_t)w[i - 16]) % ((uint64_t)1 << 32));
-        }
-
-        uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
-        for (int i = 0; i < 64; ++i) {
-            uint32_t t1 = (uint32_t)(((uint64_t)h + (uint64_t)upper_sigma1(e) + (uint64_t)ch(e, f, g) + (uint64_t)k[i] + (uint64_t)w[i]) % ((uint64_t)1 << 32));
-            uint32_t t2 = (uint32_t)(((uint64_t)upper_sigma0(a) + (uint64_t)maj(a, b, c)) % ((uint64_t)1 << 32));
-            h = g;
-            g = f;
-            f = e;
-            e = (uint32_t)(((uint64_t)d + (uint64_t)t1) % ((uint64_t)1 << 32));
-            d = c;
-            c = b;
-            a = (uint32_t)(((uint64_t)t1 + (uint64_t)t2) % ((uint64_t)1 << 32));
-        }
-
-        hash[0] = hash[0] + a;
-        hash[1] = hash[1] + b;
-        hash[2] = hash[2] + c;
-        hash[3] = hash[3] + d;
-        hash[4] = hash[4] + e;
-        hash[5] = hash[5] + f;
-        hash[6] = hash[6] + g;
-        hash[7] = hash[7] + h;
+    size_t index = 0;
+    for (index = 0; (index + 1) * 512 <= message_len; ++index) {
+        compute_block(hash, message + index * 64);
     }
 
     //pad and compute final blocks separately
@@ -127,40 +132,8 @@ int sha256(uint32_t* hash, const uint8_t* message, const size_t message_len) {
         padded_end[message_len % 512 / 8] = message[(message_len / 512) * 64 + message_len % 512 / 8] | (1 << (8 - message_len % 8));
     }
 
-    for (int index = 0; index < final_blocks_num; ++index) {
-        uint32_t w[64];
-        for (int i = 0; i < 16; ++i) {
-            w[i] =
-                ((uint32_t)padded_end[index * 64 + i * 4] << 24) |
-                ((uint32_t)padded_end[index * 64 + i * 4 + 1] << 16) |
-                ((uint32_t)padded_end[index * 64 + i * 4 + 2] << 8) |
-                ((uint32_t)padded_end[index * 64 + i * 4 + 3]);
-        }
-        for (int i = 16; i < 64; ++i) {
-            w[i] = (uint32_t)(((uint64_t)lower_sigma1(w[i - 2]) + (uint64_t)w[i - 7] + (uint64_t)lower_sigma0(w[i - 15]) + (uint64_t)w[i - 16]) % ((uint64_t)1 << 32));
-        }
-
-        uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
-        for (int i = 0; i < 64; ++i) {
-            uint32_t t1 = (uint32_t)(((uint64_t)h + (uint64_t)upper_sigma1(e) + (uint64_t)ch(e, f, g) + (uint64_t)k[i] + (uint64_t)w[i]) % ((uint64_t)1 << 32));
-            uint32_t t2 = (uint32_t)(((uint64_t)upper_sigma0(a) + (uint64_t)maj(a, b, c)) % ((uint64_t)1 << 32));
-            h = g;
-            g = f;
-            f = e;
-            e = (uint32_t)(((uint64_t)d + (uint64_t)t1) % ((uint64_t)1 << 32));
-            d = c;
-            c = b;
-            a = (uint32_t)(((uint64_t)t1 + (uint64_t)t2) % ((uint64_t)1 << 32));
-        }
-
-        hash[0] = hash[0] + a;
-        hash[1] = hash[1] + b;
-        hash[2] = hash[2] + c;
-        hash[3] = hash[3] + d;
-        hash[4] = hash[4] + e;
-        hash[5] = hash[5] + f;
-        hash[6] = hash[6] + g;
-        hash[7] = hash[7] + h;
+    for (int i = 0; i < final_blocks_num; ++i) {
+        compute_block(hash, padded_end + ((index + i) * 64));
     }
 
     free(padded_end);
