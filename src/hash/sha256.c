@@ -1,6 +1,19 @@
 #include "sha256.h"
 
 #include <stdlib.h>
+#include <stdio.h>
+
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  ((byte) & 0x80 ? '1' : '0'), \
+  ((byte) & 0x40 ? '1' : '0'), \
+  ((byte) & 0x20 ? '1' : '0'), \
+  ((byte) & 0x10 ? '1' : '0'), \
+  ((byte) & 0x08 ? '1' : '0'), \
+  ((byte) & 0x04 ? '1' : '0'), \
+  ((byte) & 0x02 ? '1' : '0'), \
+  ((byte) & 0x01 ? '1' : '0') 
+
 
 //swap from little to big endian
 #define byteSwap64(x)                                                      \
@@ -75,17 +88,18 @@ static void compute_block(uint32_t* hash, const uint8_t* input) {
         e = d + t1;
         d = c;
         c = b;
+        b = a;
         a = t1 + t2;
     }
 
-    hash[0] = hash[0] + a;
-    hash[1] = hash[1] + b;
-    hash[2] = hash[2] + c;
-    hash[3] = hash[3] + d;
-    hash[4] = hash[4] + e;
-    hash[5] = hash[5] + f;
-    hash[6] = hash[6] + g;
-    hash[7] = hash[7] + h;
+    hash[0] += a;
+    hash[1] += b;
+    hash[2] += c;
+    hash[3] += d;
+    hash[4] += e;
+    hash[5] += f;
+    hash[6] += g;
+    hash[7] += h;
 }
 
 int sha256(uint32_t* hash, const uint8_t* message, const size_t message_len) {
