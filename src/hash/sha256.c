@@ -3,18 +3,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
-#define BYTE_TO_BINARY(byte)  \
-  ((byte) & 0x80 ? '1' : '0'), \
-  ((byte) & 0x40 ? '1' : '0'), \
-  ((byte) & 0x20 ? '1' : '0'), \
-  ((byte) & 0x10 ? '1' : '0'), \
-  ((byte) & 0x08 ? '1' : '0'), \
-  ((byte) & 0x04 ? '1' : '0'), \
-  ((byte) & 0x02 ? '1' : '0'), \
-  ((byte) & 0x01 ? '1' : '0') 
-
-
 //swap from little to big endian
 #define byteSwap64(x)                                                      \
 	((((x) >> 56) & 0x00000000000000FF) | (((x) >> 40) & 0x000000000000FF00) | \
@@ -69,10 +57,11 @@ static void compute_block(uint32_t* hash, const uint8_t* input) {
     uint32_t w[64];
     for (int i = 0; i < 16; ++i) {
         w[i] =
-            ((uint32_t)input[i * 4] << 24) |
-            ((uint32_t)input[i * 4 + 1] << 16) |
-            ((uint32_t)input[i * 4 + 2] << 8) |
-            ((uint32_t)input[i * 4 + 3]);
+            ((uint32_t)input[0] << 24) |
+            ((uint32_t)input[1] << 16) |
+            ((uint32_t)input[2] << 8) |
+            ((uint32_t)input[3]);
+        input += 4;
     }
     for (int i = 16; i < 64; ++i) {
         w[i] = lower_sigma1(w[i - 2]) + w[i - 7] + lower_sigma0(w[i - 15]) + w[i - 16];
