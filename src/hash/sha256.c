@@ -21,37 +21,14 @@ static const uint32_t k[64] = {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-static inline uint32_t rotr(uint32_t x, uint8_t n) {
-    return (x >> n) | (x << (32 - n));
-}
-
-static inline uint32_t shr(uint32_t x, uint8_t n) {
-    return x >> n;
-}
-
-static inline uint32_t ch(uint32_t x, uint32_t y, uint32_t z) {
-    return (x & y) ^ ((~x) & z);
-}
-
-static inline uint32_t maj(uint32_t x, uint32_t y, uint32_t z) {
-    return (x & y) ^ (x & z) ^ (y & z);
-}
-
-static inline uint32_t upper_sigma0(uint32_t x) {
-    return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
-}
-
-static inline uint32_t upper_sigma1(uint32_t x) {
-    return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
-}
-
-static inline uint32_t lower_sigma0(uint32_t x) {
-    return rotr(x, 7) ^ rotr(x, 18) ^ shr(x, 3);
-}
-
-static inline uint32_t lower_sigma1(uint32_t x) {
-    return rotr(x, 17) ^ rotr(x, 19) ^ shr(x, 10);
-}
+#define rotr(x, n) ((x >> n) | (x << (64 - n)))
+#define shr(x, n) (x >> n)
+#define ch(x, y, z) ((x & y) ^ ((~x) & z))
+#define maj(x, y, z) ((x & y) ^ (x & z) ^ (y & z))
+#define Sig0(x) (rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22))
+#define Sig1(x) (rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25))
+#define sig0(x) (rotr(x, 7) ^ rotr(x, 18) ^ shr(x, 3))
+#define sig1(x) (rotr(x, 17) ^ rotr(x, 19) ^ shr(x, 10))
 
 static void compute_block(uint32_t* hash, const uint8_t* input) {
     uint32_t w[64];
@@ -64,13 +41,13 @@ static void compute_block(uint32_t* hash, const uint8_t* input) {
         input += 4;
     }
     for (int i = 16; i < 64; ++i) {
-        w[i] = lower_sigma1(w[i - 2]) + w[i - 7] + lower_sigma0(w[i - 15]) + w[i - 16];
+        w[i] = sig1(w[i - 2]) + w[i - 7] + sig0(w[i - 15]) + w[i - 16];
     }
 
     uint32_t a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
     for (int i = 0; i < 64; ++i) {
-        uint32_t t1 = h + upper_sigma1(e) + ch(e, f, g) + k[i] + w[i];
-        uint32_t t2 = upper_sigma0(a) + maj(a, b, c);
+        uint32_t t1 = h + Sig1(e) + ch(e, f, g) + k[i] + w[i];
+        uint32_t t2 = Sig0(a) + maj(a, b, c);
         h = g;
         g = f;
         f = e;
