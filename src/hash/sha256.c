@@ -1,7 +1,6 @@
 #include "sha256.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 
 //swap from little to big endian
 #define byteSwap64(x)                                                      \
